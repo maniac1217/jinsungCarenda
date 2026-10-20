@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes">
+    <title>공사현장 작업일지 관리</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Pretendard', 'Malgun Gothic', '맑은 고딕', sans-serif; 
+            background-color: #f0f3f7; 
+            margin: 0; 
+            padding: 10px; 
+            color: #111; 
+            font-size: 16px;
+        }
+        .container { 
+            max-width: 950px; 
+            margin: 0 auto; 
+            background: #fff; 
+            padding: 15px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+        }
+        h2 { 
+            text-align: center; 
+            color: #000; 
+            font-size: 1.6em; 
+            font-weight: 800; 
+            margin: 10px 0 20px 0; 
+        }
+        
+        /* 캘린더 컨트롤러 */
+        .calendar-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 15px; 
+            background: #eef4fb;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .calendar-header button { 
+            background: #1a73e8; 
+            color: white; 
+            border: none; 
+            padding: 12px 18px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            font-size: 1.1em;
+            min-height: 48px;
+        }
+        .calendar-header button:active { background: #0b57d0; }
+        #monthYear { 
+            font-size: 1.5em; 
+            font-weight: 900; 
+            color: #111; 
+        }
+
+        /* 캘린더 그리드 */
+        .weekdays { 
+            display: grid; 
+            grid-template-columns: repeat(7, 1fr); 
+            text-align: center; 
+            font-weight: bold; 
+            font-size: 1.1em;
+            background: #dbe5f1; 
+            padding: 12px 0; 
+            border-radius: 8px; 
+            margin-bottom: 6px; 
+        }
+        .weekdays div:first-child { color: #d93025; } /* 일요일 */
+        .weekdays div:last-child { color: #1a73e8; }  /* 토요일 */
+
+        .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .day { 
+            min-height: 85px; 
+            background: #ffffff; 
+            border: 2px solid #cfd8dc; 
+            border-radius: 8px; 
+            padding: 4px; 
+            position: relative; 
+            cursor: pointer; 
+            transition: background 0.1s; 
+        }
+        .day:active { background: #e3f2fd; }
+        .day.other-month { color: #b0bec5; background: #f8f9fa; border-color: #eceff1; }
+        .day-number { 
+            font-weight: 900; 
+            font-size: 1.2em; 
+            margin-bottom: 4px; 
+            color: #222;
+        }
+        
+        /* 일정 뱃지 */
+        .schedule-badge { 
+            background: #0056b3; 
+            color: #ffffff; 
+            font-size: 0.85em; 
+            font-weight: bold; 
+            padding: 4px 6px; 
+            border-radius: 4px; 
+            margin-bottom: 3px; 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            display: block; 
+        }
+
+        /* 하단 리스트 영역 */
+        .list-section { margin-top: 30px; border-top: 3px solid #1a73e8; padding-top: 20px; }
+        .list-section h3 { font-size: 1.3em; color: #111; font-weight: 800; margin-bottom: 15px; }
+        
+        /* 데스크톱 테이블 */
+        .log-table { width: 100%; border-collapse: collapse; font-size: 1em; display: table; }
+        .log-table th, .log-table td { border: 1px solid #b0bec5; padding: 12px 10px; text-align: left; }
+        .log-table th { background: #e9ecef; color: #000; font-weight: bold; font-size: 1.05em; }
+        .log-table tr:nth-child(even) { background: #f8f9fa; }
+
+        /* 모바일 카드 리스트 (기본 숨김) */
+        .mobile-card-list { display: none; }
+        .card-item {
+            background: #fff;
+            border: 2px solid #1a73e8;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+        }
+        .card-date { font-weight: bold; color: #1a73e8; font-size: 1.1em; }
+        .card-title { font-size: 1.2em; font-weight: 800; color: #000; margin-bottom: 6px; }
+        .card-detail { font-size: 1em; color: #333; line-height: 1.5; }
+        .card-detail div { margin-bottom: 4px; }
+
+        /* 반응형 스타일 (모바일 화면) */
+        @media (max-width: 768px) {
+            body { padding: 5px; font-size: 15px; }
+            .container { padding: 10px; }
+            h2 { font-size: 1.3em; }
+            .calendar-header button { padding: 10px 12px; font-size: 1em; min-height: 44px; }
+            #monthYear { font-size: 1.2em; }
+            .day { min-height: 70px; padding: 2px; }
+            .day-number { font-size: 1em; }
+            .schedule-badge { font-size: 0.75em; padding: 2px 3px; }
+            
+            /* 모바일에서 테이블 숨기고 카드 표시 */
+            .log-table { display: none; }
+            .mobile-card-list { display: block; }
+        }
+
+        /* 모달 창 */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000; padding: 10px; }
+        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 100%; max-width: 500px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto; }
+        .modal-content h3 { margin-top: 0; color: #000; font-size: 1.4em; font-weight: 800; border-bottom: 2px solid #1a73e8; padding-bottom: 8px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: bold; font-size: 1.1em; color: #111; }
+        .form-group input, .form-group textarea { width: 100%; padding: 12px; border: 2px solid #90a4ae; border-radius: 8px; box-sizing: border-box; font-size: 1.1em; }
+        .form-group input:focus, .form-group textarea:focus { border-color: #1a73e8; outline: none; }
+        
+        .modal-buttons { display: flex; justify-content: space-between; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+        .modal-buttons button { flex: 1; padding: 12px 8px; border: none; border-radius: 8px; cursor: pointer; font-size: 1.1em; font-weight: bold; min-height: 48px; }
+        
+        .btn-save { background: #2e7d32; color: white; }
+        .btn-close { background: #616161; color: white; }
+        .btn-edit { background: #f39c12; color: white; padding: 8px 12px; font-size: 0.95em; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; }
+        .btn-delete { background: #d32f2f; color: white; padding: 8px 12px; font-size: 0.95em; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; }
+
+        #loading { text-align: center; color: #000; font-size: 1.2em; font-weight: bold; background: #fff3cd; padding: 10px; border-radius: 8px; margin-bottom: 10px; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>공사현장 작업일지 관리</h2>
+    <div id="loading">데이터를 처리하는 중입니다...</div>
+
+    <div class="calendar-header">
+        <button onclick="changeMonth(-1)">&lt; 이전달</button>
+        <div id="monthYear"></div>
+        <button onclick="changeMonth(1)">다음달 &gt;</button>
+    </div>
+
+    <div class="weekdays">
+        <div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div>
+    </div>
+    <div class="days" id="calendarDays"></div>
+
+    <!-- 하단 리스트 영역 -->
+    <div class="list-section">
+        <h3>월별 작업일지 목록</h3>
+        
+        <!-- PC용 표 목록 -->
+        <table class="log-table">
+            <thead>
+                <tr>
+                    <th style="width: 14%;">날짜</th>
+                    <th style="width: 22%;">공사현장</th>
+                    <th style="width: 16%;">작업자</th>
+                    <th style="width: 20%;">투입자재/장비</th>
+                    <th>공사내용</th>
+                    <th style="width: 12%; text-align:center;">관리</th>
+                </tr>
+            </thead>
+            <tbody id="bottomScheduleList"></tbody>
+        </table>
+
+        <!-- 모바일용 카드 목록 -->
+        <div class="mobile-card-list" id="bottomScheduleCards"></div>
+    </div>
+</div>
+
+<!-- 작업일지 입력/수정 모달 -->
+<div class="modal" id="scheduleModal">
+    <div class="modal-content">
+        <h3 id="modalDateTitle">작업일지 관리</h3>
+        <div id="scheduleListContainer" style="max-height: 180px; overflow-y: auto; margin-bottom: 15px; border-bottom:1px solid #ccc; padding-bottom:10px;"></div>
+        
+        <form id="scheduleForm" onsubmit="saveOrUpdateSchedule(event)">
+            <input type="hidden" id="editScheduleId">
+            <input type="hidden" id="selectedDate">
+            <h4 id="formTitle" style="margin: 10px 0; color:#1a73e8; font-size:1.2em; font-weight:bold;">[+] 새 작업일지 입력</h4>
+            
+            <div class="form-group">
+                <label for="siteName">공사현장명</label>
+                <input type="text" id="siteName" required placeholder="예: B지구 도로 확장 현장">
+            </div>
+            <div class="form-group">
+                <label for="workerName">작업자</label>
+                <input type="text" id="workerName" placeholder="예: 홍길동 외 3명">
+            </div>
+            <div class="form-group">
+                <label for="equipment">투입자재 및 장비</label>
+                <input type="text" id="equipment" placeholder="예: 굴삭기 1대, 레미콘 2대">
+            </div>
+            <div class="form-group">
+                <label for="workDetail">공사내용</label>
+                <textarea id="workDetail" rows="3" placeholder="상세 공사내용 입력"></textarea>
+            </div>
+            
+            <div class="modal-buttons">
+                <button type="button" class="btn-close" onclick="resetForm()">초기화</button>
+                <button type="button" class="btn-close" onclick="closeModal()">닫기</button>
+                <button type="submit" class="btn-save" id="submitBtn">저장하기</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxpoX_-cWbXUPkqjToK1pRbdqqZstapwdXkQwbZQt6Y51WXfVaUQtcqgry5J4dvQ8aW/exec";
+
+    let today = new Date();
+    let currentYear = today.getFullYear();
+    let currentMonth = today.getMonth();
+    let schedules = [];
+
+    window.onload = function() {
+        fetchSchedules();
+    }
+
+    // 1. 데이터 조회 (날짜 파싱 안전화)
+    function fetchSchedules() {
+        showLoading('데이터를 불러오는 중입니다...');
+        fetch(`${WEB_APP_URL}?action=get`)
+            .then(response => response.json())
+            .then(data => {
+                schedules = data.map(item => {
+                    let formattedDate = item.date;
+                    if (formattedDate) {
+                        let d = new Date(formattedDate);
+                        if (!isNaN(d.getTime())) {
+                            let y = d.getFullYear();
+                            let m = String(d.getMonth() + 1).padStart(2, '0');
+                            let day = String(d.getDate()).padStart(2, '0');
+                            formattedDate = `${y}-${m}-${day}`;
+                        } else if (typeof formattedDate === 'string') {
+                            formattedDate = formattedDate.replace(/\./g, '-').replace(/\s/g, '').replace(/-$/, '');
+                            let parts = formattedDate.split('-');
+                            if(parts.length === 3) {
+                                formattedDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                            }
+                        }
+                    }
+                    return { ...item, date: formattedDate };
+                });
+
+                hideLoading();
+                renderCalendar();
+                renderBottomList();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showLoading('데이터 로딩 실패');
+            });
+    }
+
+    // 캘린더 렌더링
+    function renderCalendar() {
+        const monthYearEl = document.getElementById('monthYear');
+        const daysContainer = document.getElementById('calendarDays');
+        
+        monthYearEl.innerText = `${currentYear}년 ${currentMonth + 1}월`;
+        daysContainer.innerHTML = '';
+
+        const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
+        const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
+        const prevLastDay = new Date(currentYear, currentMonth, 0).getDate();
+
+        let daysHtml = '';
+
+        for (let i = firstDayIndex; i > 0; i--) {
+            let prevDate = prevLastDay - i + 1;
+            daysHtml += `<div class="day other-month"><div class="day-number">${prevDate}</div></div>`;
+        }
+
+        for (let i = 1; i <= lastDay; i++) {
+            let monthStr = String(currentMonth + 1).padStart(2, '0');
+            let dayStr = String(i).padStart(2, '0');
+            let dateString = `${currentYear}-${monthStr}-${dayStr}`;
+
+            let daySchedules = schedules.filter(item => item.date === dateString);
+            let badgesHtml = '';
+            daySchedules.forEach(s => {
+                let site = s.siteName || s.title || '현장 미기재';
+                badgesHtml += `<span class="schedule-badge" title="${site}">${site}</span>`;
+            });
+
+            daysHtml += `
+                <div class="day" onclick="openModal('${dateString}')">
+                    <div class="day-number">${i}</div>
+                    ${badgesHtml}
+                </div>
+            `;
+        }
+
+        daysContainer.innerHTML = daysHtml;
+    }
+
+    // 하단 리스트 렌더링 (PC 표 + 모바일 카드 통합)
+    function renderBottomList() {
+        const bottomContainer = document.getElementById('bottomScheduleList');
+        const bottomCardContainer = document.getElementById('bottomScheduleCards');
+        
+        let monthStr = String(currentMonth + 1).padStart(2, '0');
+        let currentMonthPrefix = `${currentYear}-${monthStr}`;
+
+        let filteredSchedules = schedules.filter(item => item.date && item.date.startsWith(currentMonthPrefix));
+        filteredSchedules.sort((a, b) => a.date.localeCompare(b.date));
+
+        if (filteredSchedules.length === 0) {
+            bottomContainer.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#888; padding:20px;">해당 월에 등록된 작업일지가 없습니다.</td></tr>';
+            bottomCardContainer.innerHTML = '<div style="text-align:center; color:#888; padding:20px; font-weight:bold;">해당 월에 등록된 작업일지가 없습니다.</div>';
+            return;
+        }
+
+        // 1. PC 테이블용 HTML
+        let tableHtml = '';
+        // 2. 모바일 카드용 HTML
+        let cardHtml = '';
+
+        filteredSchedules.forEach(s => {
+            let site = s.siteName || s.title || '';
+            let detail = s.workDetail || s.content || '';
+
+            tableHtml += `
+                <tr>
+                    <td><strong>${s.date}</strong></td>
+                    <td><strong style="color:#1a73e8;">${escapeHtml(site)}</strong></td>
+                    <td>${escapeHtml(s.workerName || '')}</td>
+                    <td>${escapeHtml(s.equipment || '')}</td>
+                    <td>${escapeHtml(detail)}</td>
+                    <td style="text-align:center;">
+                        <button class="btn-delete" onclick="deleteSchedule('${s.id}')">삭제</button>
+                    </td>
+                </tr>
+            `;
+
+            cardHtml += `
+                <div class="card-item">
+                    <div class="card-header">
+                        <span class="card-date">📅 ${s.date}</span>
+                        <button class="btn-delete" onclick="deleteSchedule('${s.id}')">삭제</button>
+                    </div>
+                    <div class="card-title">🏗️ ${escapeHtml(site)}</div>
+                    <div class="card-detail">
+                        <div><strong>👷 작업자:</strong> ${escapeHtml(s.workerName || '-')}</div>
+                        <div><strong>🚜 자재/장비:</strong> ${escapeHtml(s.equipment || '-')}</div>
+                        <div><strong>📝 공사내용:</strong> ${escapeHtml(detail || '-')}</div>
+                    </div>
+                </div>
+            `;
+        });
+
+        bottomContainer.innerHTML = tableHtml;
+        bottomCardContainer.innerHTML = cardHtml;
+    }
+
+    function changeMonth(direction) {
+        currentMonth += direction;
+        if (currentMonth > 11) {
+            currentMonth = 0;
+            currentYear++;
+        } else if (currentMonth < 0) {
+            currentMonth = 11;
+            currentYear--;
+        }
+        renderCalendar();
+        renderBottomList();
+    }
+
+    // 모달 열기
+    function openModal(dateStr) {
+        document.getElementById('selectedDate').value = dateStr;
+        document.getElementById('modalDateTitle').innerText = `${dateStr} 작업일지`;
+        resetForm();
+        renderScheduleList(dateStr);
+        document.getElementById('scheduleModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('scheduleModal').style.display = 'none';
+    }
+
+    function resetForm() {
+        document.getElementById('editScheduleId').value = '';
+        document.getElementById('siteName').value = '';
+        document.getElementById('workerName').value = '';
+        document.getElementById('equipment').value = '';
+        document.getElementById('workDetail').value = '';
+        document.getElementById('formTitle').innerText = '[+] 새 작업일지 입력';
+        document.getElementById('submitBtn').innerText = '저장하기';
+    }
+
+    // 모달 내 등록 목록 표시
+    function renderScheduleList(dateStr) {
+        let daySchedules = schedules.filter(item => item.date === dateStr);
+        let listContainer = document.getElementById('scheduleListContainer');
+        
+        if (daySchedules.length === 0) {
+            listContainer.innerHTML = '<p style="font-size:1em; color:#666; text-align:center; margin:10px 0;">등록된 일지가 없습니다.</p>';
+        } else {
+            let html = '';
+            daySchedules.forEach(s => {
+                let site = s.siteName || s.title || '';
+                let detail = s.workDetail || s.content || '';
+                html += `
+                    <div style="background:#eef4fb; padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <strong style="font-size:1.1em; color:#000;">[${escapeHtml(site)}]</strong> ${escapeHtml(s.workerName || '')}<br>
+                            <span style="color:#444; font-size:1em;">${escapeHtml(detail)}</span>
+                        </div>
+                        <div style="display:flex; gap:6px; flex-shrink:0;">
+                            <button type="button" class="btn-edit" onclick="editSchedule('${s.id}')">수정</button>
+                            <button type="button" class="btn-delete" onclick="deleteSchedule('${s.id}')">삭제</button>
+                        </div>
+                    </div>
+                `;
+            });
+            listContainer.innerHTML = html;
+        }
+    }
+
+    // 데이터 저장/수정
+    function saveOrUpdateSchedule(event) {
+        event.preventDefault();
+        let id = document.getElementById('editScheduleId').value;
+        let date = document.getElementById('selectedDate').value;
+        let siteName = document.getElementById('siteName').value;
+        let workerName = document.getElementById('workerName').value;
+        let equipment = document.getElementById('equipment').value;
+        let workDetail = document.getElementById('workDetail').value;
+        
+        let action = id ? 'update' : 'add';
+
+        showLoading('저장하는 중입니다...');
+
+        const payload = {
+            action: action,
+            id: id,
+            date: date,
+            siteName: siteName,
+            workerName: workerName,
+            equipment: equipment,
+            workDetail: workDetail,
+            title: siteName, 
+            content: workDetail
+        };
+
+        fetch(WEB_APP_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+        .then(response => response.json())
+        .then(res => {
+            if (res.status === 'success') {
+                resetForm();
+                fetchSchedules();
+                renderScheduleList(date);
+            } else {
+                alert('저장 실패');
+                hideLoading();
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('통신 오류가 발생했습니다.');
+            hideLoading();
+        });
+    }
+
+    // 수정 모드 진입
+    function editSchedule(id) {
+        let item = schedules.find(s => s.id === id);
+        if(!item) return;
+
+        document.getElementById('editScheduleId').value = item.id;
+        document.getElementById('siteName').value = item.siteName || item.title || '';
+        document.getElementById('workerName').value = item.workerName || '';
+        document.getElementById('equipment').value = item.equipment || '';
+        document.getElementById('workDetail').value = item.workDetail || item.content || '';
+        
+        document.getElementById('formTitle').innerText = '✏️ 작업일지 수정 중';
+        document.getElementById('submitBtn').innerText = '수정완료';
+    }
+
+    // 삭제
+    function deleteSchedule(id) {
+        if (!confirm('정말 삭제하시겠습니까?')) return;
+
+        showLoading('삭제하는 중입니다...');
+
+        fetch(WEB_APP_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'delete', id: id })
+        })
+        .then(response => response.json())
+        .then(res => {
+            if (res.status === 'success') {
+                let dateStr = document.getElementById('selectedDate').value;
+                fetchSchedules();
+                if(dateStr) renderScheduleList(dateStr);
+            } else {
+                alert('삭제 실패');
+                hideLoading();
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('통신 오류가 발생했습니다.');
+            hideLoading();
+        });
+    }
+
+    function showLoading(msg) {
+        const loadingEl = document.getElementById('loading');
+        loadingEl.innerText = msg;
+        loadingEl.style.display = 'block';
+    }
+
+    function hideLoading() {
+        document.getElementById('loading').style.display = 'none';
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return text.replace(/&/g, "&amp;")
+                   .replace(/</g, "&lt;")
+                   .replace(/>/g, "&gt;")
+                   .replace(/"/g, "&quot;")
+                   .replace(/'/g, "&#039;");
+    }
+</script>
+
+</body>
+</html>
